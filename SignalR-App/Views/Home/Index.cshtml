@@ -1,0 +1,68 @@
+﻿@{
+    ViewData["Title"] = "Home Page";
+}
+
+<h1>Sohbet</h1>
+
+<form id="frmMessage">
+    <input id="txtMessage" type="text"
+        placeholder="Your Messages..." required/>
+        <button>Gönder</button>
+</form>
+
+<ul id="ulMessage"></ul>
+
+@section Scripts{
+    <script>
+        const frmMessage=document.getElementById("frmMessage");
+        const txtMessage=document.getElementById("txtMessage");
+        const ulMessage = document.getElementById("ulMessage");
+        const name=prompt("Your Name");
+        const color=`rgba(${r()},${r()},${r()},0.75)`;
+        function r(){
+            return Math.floor(Math.random()*256);
+        }
+      
+        const connection=new signalR.HubConnectionBuilder().withUrl("/chatHub").build();
+
+        window.onmousemove=function(e){
+            connection.invoke("SendLocation", color, e.clientX, e.clientY);
+        };
+
+        connection.on("LocationReceived", function (connectionId, color, x, y) {
+            let box=document.getElementById(connectionId);
+            if(!box){
+                const box=document.createElement("div");
+                box.className="box";
+                box.id=connectionId;
+                document.body.append(box);
+            }
+            box.style.background=color;
+            box.style.left=x+"px";
+            box.style.top=y+"px";
+        });
+
+        frmMessage.onsubmit= function(event){
+            event.preventDefault();
+
+            connection.invoke("SendMessage",name,txtMessage.value)
+            .catch(function(err){
+                console.log(err);
+            });
+            txtMessage.value="";
+        };
+
+        connection.on("NewMessage", function (user, message) {
+            const li=document.createElement("li");
+            li.textContent=`${user}: ${message}`;
+            ulMessage.prepend(li);
+        });
+        //start connection
+        connection.start().then(function(){
+            console.log("Connection succesful");
+        })
+        .catch(function(err){
+            console.log(err);
+        });
+    </script>
+}
